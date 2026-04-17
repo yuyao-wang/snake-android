@@ -5,7 +5,18 @@ plugins {
 
 android {
     namespace 'com.example.snake'
-    compileSdk 34
+    compileSdk 35
+
+    def releaseSigningEnvVars = [
+            "KEYSTORE_PATH",
+            "KEYSTORE_PASSWORD",
+            "KEY_ALIAS",
+            "KEY_PASSWORD"
+    ]
+    def releaseSigningConfigured = releaseSigningEnvVars.every { name ->
+        def value = System.getenv(name)
+        value != null && !value.trim().isEmpty()
+    }
 
     defaultConfig {
         applicationId "com.snake_game_agent_test.app"
@@ -17,17 +28,21 @@ android {
 
     signingConfigs {
         release {
-            storeFile file(System.getenv("KEYSTORE_PATH") ?: "keystore.jks")
-            storePassword System.getenv("KEYSTORE_PASSWORD") ?: "android123"
-            keyAlias System.getenv("KEY_ALIAS") ?: "snake"
-            keyPassword System.getenv("KEY_PASSWORD") ?: "android123"
+            if (releaseSigningConfigured) {
+                storeFile file(System.getenv("KEYSTORE_PATH"))
+                storePassword System.getenv("KEYSTORE_PASSWORD")
+                keyAlias System.getenv("KEY_ALIAS")
+                keyPassword System.getenv("KEY_PASSWORD")
+            }
         }
     }
 
     buildTypes {
         release {
             minifyEnabled false
-            signingConfig signingConfigs.release
+            if (releaseSigningConfigured) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 
@@ -41,7 +56,21 @@ android {
     }
 }
 
-dependencies {
-    implementation 'androidx.core:core-ktx:1.12.0'
-    implementation 'androidx.appcompat:appcompat:1.6.1'
+tasks.configureEach { task ->
+    if (task.name == "assembleRelease" || task.name == "bundleRelease") {
+        task.doFirst {
+            def missing = ["KEYSTORE_PATH", "KEYSTORE_PASSWORD", "KEY_ALIAS", "KEY_PASSWORD"].findAll { name ->
+                def value = System.getenv(name)
+                value == null || value.trim().isEmpty()
+            }
+            if (!missing.isEmpty()) {
+                throw new GradleException("Release signing is not configured. Missing environment variables: ${missing.join(', ')}")
+            }
+
+            def keystore = file(System.getenv("KEYSTORE_PATH"))
+            if (!keystore.isFile()) {
+                throw new GradleException("Release keystore does not exist: ${keystore}")
+            }
+        }
+    }
 }

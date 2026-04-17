@@ -1,5 +1,6 @@
 package com.example.snake
 
+import android.app.Activity
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
@@ -10,9 +11,9 @@ import android.os.Looper
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
-import androidx.appcompat.app.AppCompatActivity
+import kotlin.math.abs
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(SnakeView(this))
@@ -21,7 +22,10 @@ class MainActivity : AppCompatActivity() {
 
 class SnakeView(context: Context) : View(context), GestureDetector.OnGestureListener {
 
-    private val CELL_COUNT = 20
+    private companion object {
+        const val CELL_COUNT = 20
+        const val GAME_TICK_MS = 200L
+    }
 
     private val snake = ArrayDeque<Pair<Int, Int>>()
     private var food = Pair(0, 0)
@@ -44,6 +48,7 @@ class SnakeView(context: Context) : View(context), GestureDetector.OnGestureList
 
     private val handler = Handler(Looper.getMainLooper())
     private val gestureDetector = GestureDetector(context, this)
+    private var loopRunning = false
 
     init {
         resetGame()
@@ -59,8 +64,30 @@ class SnakeView(context: Context) : View(context), GestureDetector.OnGestureList
         score = 0
         gameOver = false
         spawnFood()
-        handler.removeCallbacksAndMessages(null)
-        handler.postDelayed(gameLoop, 200)
+        invalidate()
+        if (isAttachedToWindow) startLoop()
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        startLoop()
+    }
+
+    override fun onDetachedFromWindow() {
+        stopLoop()
+        super.onDetachedFromWindow()
+    }
+
+    private fun startLoop() {
+        if (loopRunning || gameOver) return
+        loopRunning = true
+        handler.removeCallbacks(gameLoop)
+        handler.postDelayed(gameLoop, GAME_TICK_MS)
+    }
+
+    private fun stopLoop() {
+        loopRunning = false
+        handler.removeCallbacks(gameLoop)
     }
 
     private val gameLoop = object : Runnable {
@@ -68,7 +95,12 @@ class SnakeView(context: Context) : View(context), GestureDetector.OnGestureList
             if (!gameOver) {
                 update()
                 invalidate()
-                handler.postDelayed(this, 200)
+            }
+
+            if (gameOver) {
+                loopRunning = false
+            } else {
+                handler.postDelayed(this, GAME_TICK_MS)
             }
         }
     }
@@ -137,7 +169,7 @@ class SnakeView(context: Context) : View(context), GestureDetector.OnGestureList
     }
 
     override fun onFling(e1: MotionEvent?, e2: MotionEvent, vX: Float, vY: Float): Boolean {
-        if (Math.abs(vX) > Math.abs(vY)) {
+        if (abs(vX) > abs(vY)) {
             if (vX > 0 && dirX != -1) { nextDirX = 1; nextDirY = 0 }
             else if (vX < 0 && dirX != 1) { nextDirX = -1; nextDirY = 0 }
         } else {
