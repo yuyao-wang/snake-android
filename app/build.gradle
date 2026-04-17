@@ -8,7 +8,7 @@ android {
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.example.snake"
+        applicationId "com.snake_game_agent_test.app"
         minSdk 24
         targetSdk 34
         versionCode 1
