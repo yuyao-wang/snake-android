@@ -20,17 +20,8 @@ jobs:
         with:
           gradle-version: '8.5'
 
-      - name: Generate keystore
-        run: |
-          keytool -genkey -v \
-            -keystore ${{ github.workspace }}/app/keystore.jks \
-            -alias snake \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -storepass android123 \
-            -keypass android123 \
-            -dname "CN=Snake Game, OU=Dev, O=Dev, L=City, S=State, C=US"
+      - name: Decode keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > ${{ github.workspace }}/app/keystore.jks
 
       - name: Build release AAB
         run: gradle :app:bundleRelease
