@@ -1,11 +1,14 @@
 package com.example.snake
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -15,11 +18,19 @@ import android.view.View
 import kotlin.math.abs
 
 class MainActivity : Activity() {
+    private companion object {
+        const val PRIVACY_POLICY_URL = "https://yuyao-wang.github.io/snake-android/privacy-policy.html"
+    }
+
     private lateinit var snakeView: SnakeView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        snakeView = SnakeView(this) { finish() }
+        snakeView = SnakeView(
+            context = this,
+            onExit = { finish() },
+            onPrivacyPolicy = { openPrivacyPolicy() }
+        )
         setContentView(snakeView)
     }
 
@@ -27,9 +38,21 @@ class MainActivity : Activity() {
         snakeView.saveScoreBeforeExit()
         super.onBackPressed()
     }
+
+    private fun openPrivacyPolicy() {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_POLICY_URL)))
+        } catch (_: ActivityNotFoundException) {
+            // If no browser is available, the Play listing still includes the policy URL.
+        }
+    }
 }
 
-class SnakeView(context: Context, private val onExit: () -> Unit) : View(context),
+class SnakeView(
+    context: Context,
+    private val onExit: () -> Unit,
+    private val onPrivacyPolicy: () -> Unit
+) : View(context),
     GestureDetector.OnGestureListener {
 
     private companion object {
@@ -83,6 +106,7 @@ class SnakeView(context: Context, private val onExit: () -> Unit) : View(context
     private val gestureDetector = GestureDetector(context, this)
     private val boardBounds = RectF()
     private val restartButtonBounds = RectF()
+    private val privacyButtonBounds = RectF()
     private val exitButtonBounds = RectF()
     private var loopRunning = false
 
@@ -283,11 +307,19 @@ class SnakeView(context: Context, private val onExit: () -> Unit) : View(context
 
         val buttonTop = dp(68f)
         val buttonBottom = dp(104f)
-        val buttonGap = dp(10f)
-        restartButtonBounds.set(padding, buttonTop, width / 2f - buttonGap / 2f, buttonBottom)
-        exitButtonBounds.set(width / 2f + buttonGap / 2f, buttonTop, width - padding, buttonBottom)
+        val buttonGap = dp(8f)
+        val buttonWidth = (width - padding * 2 - buttonGap * 2) / 3f
+        restartButtonBounds.set(padding, buttonTop, padding + buttonWidth, buttonBottom)
+        privacyButtonBounds.set(
+            restartButtonBounds.right + buttonGap,
+            buttonTop,
+            restartButtonBounds.right + buttonGap + buttonWidth,
+            buttonBottom
+        )
+        exitButtonBounds.set(width - padding - buttonWidth, buttonTop, width - padding, buttonBottom)
 
         drawButton(canvas, restartButtonBounds, "Restart")
+        drawButton(canvas, privacyButtonBounds, "Privacy")
         drawButton(canvas, exitButtonBounds, "Exit")
     }
 
@@ -355,6 +387,10 @@ class SnakeView(context: Context, private val onExit: () -> Unit) : View(context
         if (event.action == MotionEvent.ACTION_UP) {
             if (restartButtonBounds.contains(event.x, event.y)) {
                 restartGame()
+                return true
+            }
+            if (privacyButtonBounds.contains(event.x, event.y)) {
+                onPrivacyPolicy()
                 return true
             }
             if (exitButtonBounds.contains(event.x, event.y)) {

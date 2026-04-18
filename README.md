@@ -14,6 +14,21 @@ This project can be built for Google Play entirely in GitHub Actions. You do not
 
 The GitHub runner installs the Android SDK packages needed for the build.
 
+## Privacy policy
+
+The app privacy policy is stored at:
+
+```text
+docs/privacy-policy.html
+```
+
+When GitHub Pages is enabled for this repository from the `main` branch and
+`/docs` folder, use this URL in Play Console:
+
+```text
+https://yuyao-wang.github.io/snake-android/privacy-policy.html
+```
+
 ## Build
 
 Debug build:
