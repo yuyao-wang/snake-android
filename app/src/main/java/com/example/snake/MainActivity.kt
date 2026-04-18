@@ -252,7 +252,7 @@ class SnakeView(
         if (w <= 0f || h <= 0f) return
 
         val padding = dp(16f)
-        val topArea = dp(112f)
+        val topArea = dp(128f)
         val bottomArea = dp(112f)
         val boardSize = minOf(
             maxOf(1f, w - padding * 2),
@@ -297,16 +297,19 @@ class SnakeView(
     private fun drawHeader(canvas: Canvas, width: Float) {
         val padding = dp(16f)
         paintText.textAlign = Paint.Align.LEFT
-        paintText.textSize = sp(20f)
+        paintText.textSize = sp(22f)
         paintText.color = Color.WHITE
-        canvas.drawText("Score: $score", padding, dp(32f), paintText)
+        canvas.drawText("Zen Snake", padding, dp(32f), paintText)
 
-        paintText.textSize = sp(15f)
+        paintText.textSize = sp(16f)
+        canvas.drawText("Score: $score", padding, dp(58f), paintText)
+
+        paintText.textSize = sp(14f)
         paintText.color = Color.rgb(190, 190, 190)
-        canvas.drawText("Best: ${bestScore()}", padding, dp(56f), paintText)
+        canvas.drawText("Best: ${bestScore()}", padding, dp(80f), paintText)
 
-        val buttonTop = dp(68f)
-        val buttonBottom = dp(104f)
+        val buttonTop = dp(92f)
+        val buttonBottom = dp(124f)
         val buttonGap = dp(8f)
         val buttonWidth = (width - padding * 2 - buttonGap * 2) / 3f
         restartButtonBounds.set(padding, buttonTop, padding + buttonWidth, buttonBottom)

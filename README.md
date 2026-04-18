@@ -1,13 +1,13 @@
-# Snake Game
+# Zen Snake
 
-A minimalist snake game designed for focus and relaxation.
+A quiet, minimalist snake game inspired by simple, focused play.
 
 ## Product positioning
 
 Use this wording for public release materials:
 
 ```text
-A minimalist snake game designed for focus and relaxation.
+A quiet, minimalist snake game inspired by simple, focused play.
 ```
 
 Core differentiators:

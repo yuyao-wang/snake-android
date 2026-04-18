@@ -2,15 +2,15 @@
 
 ## App Name
 
-Snake Game
+Zen Snake
 
 ## Short Description
 
-A minimalist snake game designed for focus and relaxation.
+A quiet, minimalist snake game inspired by simple, focused play.
 
 ## Full Description
 
-Snake Game is a minimalist arcade game designed for focus and relaxation.
+Zen Snake is a quiet, minimalist arcade game inspired by simple, focused play.
 
 Swipe to guide the snake, collect food, and build your score at your own pace.
 The clean black-and-white interface keeps the experience simple and calm, with
@@ -30,9 +30,9 @@ improving.
 
 ## Suggested Feature Graphic Text
 
-Minimal Snake
+Zen Snake
 
-Focus. Swipe. Relax.
+Quiet. Simple. Focused.
 
 ## Notes
 
