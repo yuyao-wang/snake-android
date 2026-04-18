@@ -76,21 +76,21 @@ class SnakeView(
     private var scoreRecorded = false
     private var cellSize = 0f
 
-    private val paintSnake = Paint().apply { color = Color.GREEN }
-    private val paintFood = Paint().apply { color = Color.RED }
+    private val paintSnake = Paint().apply { color = Color.WHITE }
+    private val paintFood = Paint().apply { color = Color.rgb(190, 190, 190) }
     private val paintBg = Paint().apply { color = Color.BLACK }
-    private val paintBoard = Paint().apply { color = Color.rgb(16, 28, 18) }
+    private val paintBoard = Paint().apply { color = Color.rgb(12, 12, 12) }
     private val paintGrid = Paint().apply {
-        color = Color.rgb(34, 53, 38)
+        color = Color.rgb(42, 42, 42)
         style = Paint.Style.STROKE
         strokeWidth = 1f
     }
     private val paintButton = Paint().apply {
-        color = Color.rgb(44, 67, 52)
+        color = Color.rgb(28, 28, 28)
         isAntiAlias = true
     }
     private val paintButtonStroke = Paint().apply {
-        color = Color.rgb(120, 168, 127)
+        color = Color.rgb(128, 128, 128)
         isAntiAlias = true
         style = Paint.Style.STROKE
         strokeWidth = 2f
@@ -302,7 +302,7 @@ class SnakeView(
         canvas.drawText("Score: $score", padding, dp(32f), paintText)
 
         paintText.textSize = sp(15f)
-        paintText.color = Color.rgb(185, 214, 188)
+        paintText.color = Color.rgb(190, 190, 190)
         canvas.drawText("Best: ${bestScore()}", padding, dp(56f), paintText)
 
         val buttonTop = dp(68f)
@@ -348,7 +348,7 @@ class SnakeView(
     private fun drawScoreHistory(canvas: Canvas, width: Float, top: Float) {
         paintText.textAlign = Paint.Align.CENTER
         paintText.textSize = sp(15f)
-        paintText.color = Color.rgb(185, 214, 188)
+        paintText.color = Color.rgb(190, 190, 190)
         val recentScores = if (scoreHistory.isEmpty()) "none" else scoreHistory.joinToString("  ")
         canvas.drawText("Recent scores: $recentScores", width / 2f, top, paintText)
     }
@@ -369,7 +369,7 @@ class SnakeView(
             paintText
         )
 
-        paintText.color = Color.rgb(210, 232, 210)
+        paintText.color = Color.rgb(210, 210, 210)
         paintText.textSize = sp(15f)
         canvas.drawText(
             "Tap Restart to play again",

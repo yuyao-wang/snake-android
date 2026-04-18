@@ -1,6 +1,24 @@
 # Snake Game
 
-Minimal offline Android game for Google Play review and store-review workflow testing.
+A minimalist snake game designed for focus and relaxation.
+
+## Product positioning
+
+Use this wording for public release materials:
+
+```text
+A minimalist snake game designed for focus and relaxation.
+```
+
+Core differentiators:
+
+- Minimalist black-and-white interface
+- No ads
+- Focused, distraction-free play
+- Swipe gesture controls
+- Local score history
+
+Use only production product wording in public release materials.
 
 ## No Android Studio release flow
 
