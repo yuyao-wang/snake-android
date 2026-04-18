@@ -5,6 +5,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.RectF
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -14,20 +15,34 @@ import android.view.View
 import kotlin.math.abs
 
 class MainActivity : Activity() {
+    private lateinit var snakeView: SnakeView
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(SnakeView(this))
+        snakeView = SnakeView(this) { finish() }
+        setContentView(snakeView)
+    }
+
+    override fun onBackPressed() {
+        snakeView.saveScoreBeforeExit()
+        super.onBackPressed()
     }
 }
 
-class SnakeView(context: Context) : View(context), GestureDetector.OnGestureListener {
+class SnakeView(context: Context, private val onExit: () -> Unit) : View(context),
+    GestureDetector.OnGestureListener {
 
     private companion object {
         const val CELL_COUNT = 20
         const val GAME_TICK_MS = 200L
+        const val MAX_SCORE_HISTORY = 5
+        const val PREFS_NAME = "snake_scores"
+        const val KEY_SCORE_HISTORY = "score_history"
     }
 
     private val snake = ArrayDeque<Pair<Int, Int>>()
+    private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private var scoreHistory = loadScoreHistory()
     private var food = Pair(0, 0)
     private var dirX = 1
     private var dirY = 0
@@ -35,11 +50,29 @@ class SnakeView(context: Context) : View(context), GestureDetector.OnGestureList
     private var nextDirY = 0
     private var score = 0
     private var gameOver = false
+    private var scoreRecorded = false
     private var cellSize = 0f
 
     private val paintSnake = Paint().apply { color = Color.GREEN }
     private val paintFood = Paint().apply { color = Color.RED }
     private val paintBg = Paint().apply { color = Color.BLACK }
+    private val paintBoard = Paint().apply { color = Color.rgb(16, 28, 18) }
+    private val paintGrid = Paint().apply {
+        color = Color.rgb(34, 53, 38)
+        style = Paint.Style.STROKE
+        strokeWidth = 1f
+    }
+    private val paintButton = Paint().apply {
+        color = Color.rgb(44, 67, 52)
+        isAntiAlias = true
+    }
+    private val paintButtonStroke = Paint().apply {
+        color = Color.rgb(120, 168, 127)
+        isAntiAlias = true
+        style = Paint.Style.STROKE
+        strokeWidth = 2f
+    }
+    private val paintOverlay = Paint().apply { color = Color.argb(180, 0, 0, 0) }
     private val paintText = Paint().apply {
         color = Color.WHITE
         textAlign = Paint.Align.CENTER
@@ -48,11 +81,34 @@ class SnakeView(context: Context) : View(context), GestureDetector.OnGestureList
 
     private val handler = Handler(Looper.getMainLooper())
     private val gestureDetector = GestureDetector(context, this)
+    private val boardBounds = RectF()
+    private val restartButtonBounds = RectF()
+    private val exitButtonBounds = RectF()
     private var loopRunning = false
 
     init {
         resetGame()
     }
+
+    private fun loadScoreHistory(): List<Int> {
+        val raw = prefs.getString(KEY_SCORE_HISTORY, "") ?: ""
+        if (raw.isBlank()) return emptyList()
+        return raw.split(",")
+            .mapNotNull { it.trim().toIntOrNull() }
+            .take(MAX_SCORE_HISTORY)
+    }
+
+    private fun recordScore() {
+        if (scoreRecorded) return
+
+        scoreHistory = (listOf(score) + scoreHistory).take(MAX_SCORE_HISTORY)
+        prefs.edit()
+            .putString(KEY_SCORE_HISTORY, scoreHistory.joinToString(","))
+            .apply()
+        scoreRecorded = true
+    }
+
+    private fun bestScore(): Int = maxOf(score, scoreHistory.maxOrNull() ?: 0)
 
     private fun resetGame() {
         snake.clear()
@@ -63,9 +119,31 @@ class SnakeView(context: Context) : View(context), GestureDetector.OnGestureList
         nextDirX = 1; nextDirY = 0
         score = 0
         gameOver = false
+        scoreRecorded = false
         spawnFood()
         invalidate()
         if (isAttachedToWindow) startLoop()
+    }
+
+    private fun restartGame() {
+        if (!gameOver && score > 0) recordScore()
+        resetGame()
+    }
+
+    fun saveScoreBeforeExit() {
+        if (!gameOver && score > 0) recordScore()
+    }
+
+    private fun exitGame() {
+        saveScoreBeforeExit()
+        stopLoop()
+        onExit()
+    }
+
+    private fun finishGame() {
+        gameOver = true
+        recordScore()
+        stopLoop()
     }
 
     override fun onAttachedToWindow() {
@@ -94,10 +172,10 @@ class SnakeView(context: Context) : View(context), GestureDetector.OnGestureList
         override fun run() {
             if (!gameOver) {
                 update()
-                invalidate()
             }
+            invalidate()
 
-            if (gameOver) {
+            if (gameOver || !loopRunning) {
                 loopRunning = false
             } else {
                 handler.postDelayed(this, GAME_TICK_MS)
@@ -112,24 +190,58 @@ class SnakeView(context: Context) : View(context), GestureDetector.OnGestureList
             (head.first + dirX + CELL_COUNT) % CELL_COUNT,
             (head.second + dirY + CELL_COUNT) % CELL_COUNT
         )
-        if (snake.contains(newHead)) { gameOver = true; return }
+
+        val willEat = newHead == food
+        val collisionBody = if (willEat) snake.toList() else snake.dropLast(1)
+        if (collisionBody.contains(newHead)) {
+            finishGame()
+            return
+        }
+
         snake.addFirst(newHead)
-        if (newHead == food) { score++; spawnFood() } else { snake.removeLast() }
+        if (willEat) {
+            score++
+            if (snake.size == CELL_COUNT * CELL_COUNT) {
+                finishGame()
+            } else {
+                spawnFood()
+            }
+        } else {
+            snake.removeLast()
+        }
     }
 
     private fun spawnFood() {
-        do { food = Pair((0 until CELL_COUNT).random(), (0 until CELL_COUNT).random()) }
-        while (snake.contains(food))
+        val emptyCells = mutableListOf<Pair<Int, Int>>()
+        for (x in 0 until CELL_COUNT) {
+            for (y in 0 until CELL_COUNT) {
+                val cell = Pair(x, y)
+                if (!snake.contains(cell)) emptyCells.add(cell)
+            }
+        }
+        if (emptyCells.isNotEmpty()) food = emptyCells.random()
     }
 
     override fun onDraw(canvas: Canvas) {
         val w = width.toFloat()
         val h = height.toFloat()
-        cellSize = minOf(w, h) / CELL_COUNT
-        val offsetX = (w - cellSize * CELL_COUNT) / 2
-        val offsetY = (h - cellSize * CELL_COUNT) / 2
+        if (w <= 0f || h <= 0f) return
+
+        val padding = dp(16f)
+        val topArea = dp(112f)
+        val bottomArea = dp(112f)
+        val boardSize = minOf(
+            maxOf(1f, w - padding * 2),
+            maxOf(1f, h - topArea - bottomArea)
+        )
+        val offsetX = (w - boardSize) / 2
+        val offsetY = topArea + maxOf(0f, (h - topArea - bottomArea - boardSize) / 2)
+        cellSize = boardSize / CELL_COUNT
+        boardBounds.set(offsetX, offsetY, offsetX + boardSize, offsetY + boardSize)
 
         canvas.drawRect(0f, 0f, w, h, paintBg)
+        drawHeader(canvas, w)
+        drawBoard(canvas)
 
         for (seg in snake) {
             canvas.drawRect(
@@ -141,30 +253,120 @@ class SnakeView(context: Context) : View(context), GestureDetector.OnGestureList
             )
         }
 
-        canvas.drawRect(
-            offsetX + food.first * cellSize + 3,
-            offsetY + food.second * cellSize + 3,
-            offsetX + (food.first + 1) * cellSize - 3,
-            offsetY + (food.second + 1) * cellSize - 3,
-            paintFood
-        )
+        if (!gameOver) {
+            canvas.drawRect(
+                offsetX + food.first * cellSize + 3,
+                offsetY + food.second * cellSize + 3,
+                offsetX + (food.first + 1) * cellSize - 3,
+                offsetY + (food.second + 1) * cellSize - 3,
+                paintFood
+            )
+        }
 
-        paintText.textSize = h * 0.05f
-        canvas.drawText("Score: $score", w / 2, offsetY - 10f, paintText)
+        drawScoreHistory(canvas, w, boardBounds.bottom + dp(28f))
 
         if (gameOver) {
-            paintText.textSize = h * 0.08f
-            canvas.drawText("Game Over!", w / 2, h / 2 - h * 0.05f, paintText)
-            paintText.textSize = h * 0.045f
-            canvas.drawText("Tap to restart", w / 2, h / 2 + h * 0.04f, paintText)
+            drawGameOver(canvas)
         }
     }
 
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (gameOver && event.action == MotionEvent.ACTION_UP) {
-            resetGame()
-            return true
+    private fun drawHeader(canvas: Canvas, width: Float) {
+        val padding = dp(16f)
+        paintText.textAlign = Paint.Align.LEFT
+        paintText.textSize = sp(20f)
+        paintText.color = Color.WHITE
+        canvas.drawText("Score: $score", padding, dp(32f), paintText)
+
+        paintText.textSize = sp(15f)
+        paintText.color = Color.rgb(185, 214, 188)
+        canvas.drawText("Best: ${bestScore()}", padding, dp(56f), paintText)
+
+        val buttonTop = dp(68f)
+        val buttonBottom = dp(104f)
+        val buttonGap = dp(10f)
+        restartButtonBounds.set(padding, buttonTop, width / 2f - buttonGap / 2f, buttonBottom)
+        exitButtonBounds.set(width / 2f + buttonGap / 2f, buttonTop, width - padding, buttonBottom)
+
+        drawButton(canvas, restartButtonBounds, "Restart")
+        drawButton(canvas, exitButtonBounds, "Exit")
+    }
+
+    private fun drawButton(canvas: Canvas, bounds: RectF, label: String) {
+        val radius = dp(8f)
+        canvas.drawRoundRect(bounds, radius, radius, paintButton)
+        canvas.drawRoundRect(bounds, radius, radius, paintButtonStroke)
+
+        paintText.textAlign = Paint.Align.CENTER
+        paintText.textSize = sp(15f)
+        paintText.color = Color.WHITE
+        val textY = bounds.centerY() - (paintText.descent() + paintText.ascent()) / 2f
+        canvas.drawText(label, bounds.centerX(), textY, paintText)
+    }
+
+    private fun drawBoard(canvas: Canvas) {
+        canvas.drawRect(boardBounds, paintBoard)
+        for (i in 0..CELL_COUNT) {
+            val x = boardBounds.left + i * cellSize
+            val y = boardBounds.top + i * cellSize
+            canvas.drawLine(x, boardBounds.top, x, boardBounds.bottom, paintGrid)
+            canvas.drawLine(boardBounds.left, y, boardBounds.right, y, paintGrid)
         }
+    }
+
+    private fun drawScoreHistory(canvas: Canvas, width: Float, top: Float) {
+        paintText.textAlign = Paint.Align.CENTER
+        paintText.textSize = sp(15f)
+        paintText.color = Color.rgb(185, 214, 188)
+        val recentScores = if (scoreHistory.isEmpty()) "none" else scoreHistory.joinToString("  ")
+        canvas.drawText("Recent scores: $recentScores", width / 2f, top, paintText)
+    }
+
+    private fun drawGameOver(canvas: Canvas) {
+        canvas.drawRect(boardBounds, paintOverlay)
+
+        paintText.textAlign = Paint.Align.CENTER
+        paintText.color = Color.WHITE
+        paintText.textSize = sp(28f)
+        canvas.drawText("Game Over", boardBounds.centerX(), boardBounds.centerY() - dp(36f), paintText)
+
+        paintText.textSize = sp(17f)
+        canvas.drawText(
+            "Score: $score   Best: ${bestScore()}",
+            boardBounds.centerX(),
+            boardBounds.centerY(),
+            paintText
+        )
+
+        paintText.color = Color.rgb(210, 232, 210)
+        paintText.textSize = sp(15f)
+        canvas.drawText(
+            "Tap Restart to play again",
+            boardBounds.centerX(),
+            boardBounds.centerY() + dp(34f),
+            paintText
+        )
+    }
+
+    private fun dp(value: Float): Float = value * resources.displayMetrics.density
+
+    private fun sp(value: Float): Float = value * resources.displayMetrics.scaledDensity
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (event.action == MotionEvent.ACTION_UP) {
+            if (restartButtonBounds.contains(event.x, event.y)) {
+                restartGame()
+                return true
+            }
+            if (exitButtonBounds.contains(event.x, event.y)) {
+                exitGame()
+                return true
+            }
+            if (gameOver && boardBounds.contains(event.x, event.y)) {
+                resetGame()
+                return true
+            }
+        }
+
         return gestureDetector.onTouchEvent(event)
     }
 
