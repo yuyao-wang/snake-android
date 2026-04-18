@@ -76,8 +76,8 @@ class SnakeView(
     private var scoreRecorded = false
     private var cellSize = 0f
 
-    private val paintSnake = Paint().apply { color = Color.WHITE }
-    private val paintFood = Paint().apply { color = Color.rgb(190, 190, 190) }
+    private val paintSnake = Paint().apply { color = Color.rgb(65, 220, 95) }
+    private val paintFood = Paint().apply { color = Color.rgb(235, 70, 70) }
     private val paintBg = Paint().apply { color = Color.BLACK }
     private val paintBoard = Paint().apply { color = Color.rgb(12, 12, 12) }
     private val paintGrid = Paint().apply {
